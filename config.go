@@ -2,74 +2,76 @@ package main
 
 import (
 	"agent/grpc"
+	"agent/logger"
 	"agent/plugin_manager"
 	"agent/util"
 	"encoding/json"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"sync"
 )
-
-var config Config
 
 type Config struct {
 	GrpcServerConfig grpc.ServerConfig         `mapstructure:"grpcServer"`
 	Programs         []*plugin_manager.Program `mapstructure:"program"`
-	Lock             *sync.Mutex
-	Md5              string
+	Lock             *sync.Mutex               `json:"-"`
+	Md5              string                    `json:"-"`
 }
 
 var configInit sync.Once
 
-func (c *Config) loadConfig(options *Options) Config {
+var c *Config
+
+func loadConfig(options *Options) *Config {
 	viper.SetConfigFile(options.Configuration)
 	if err := viper.ReadInConfig(); err != nil {
 		panic(fmt.Errorf("failed to read config file: %v", err))
 	}
 	// 初始化config
 	configInit.Do(func() {
-		config.Lock = &sync.Mutex{}
+		c = &Config{Lock: &sync.Mutex{}}
 	})
 	// 加载config
-	config.Lock.Lock()
+	c.Lock.Lock()
 	if err := viper.Unmarshal(c); err != nil {
 		panic(fmt.Errorf("failed to unmarshal config: %s", err))
 	}
-	config.Lock.Unlock()
+	c.Lock.Unlock()
+	c.printLatestConfig()
 	// 监听配置
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		currentMd5, err := util.ReadFileMd5(options.Configuration)
 		if err != nil {
-			fmt.Println("Failed to read configuration file.")
+			logger.Logger.Error("Failed to read configuration file.", zap.String("errorMsg", err.Error()))
 		}
-		if config.Md5 == currentMd5 {
-			fmt.Println("The configuration file has not changed, skip this processing.")
+		if c.Md5 == currentMd5 {
+			logger.Logger.Info("The configuration file has not changed, skip this processing.")
 			return
 		}
-		config.Md5 = currentMd5
-		fmt.Printf("Config file changed: %s \n", e.Name)
+		c.Md5 = currentMd5
+		logger.Logger.Info("Configuration file changes.")
 
 		if err := viper.ReadInConfig(); err != nil {
-			panic(fmt.Errorf("failed to read config file: %s", err))
+			logger.Logger.Panic("Failed to read config file")
 		}
-		if err := viper.Unmarshal(&config); err != nil {
-			fmt.Printf("Failed to reload config file: %s \n", err)
+		if err := viper.Unmarshal(&c); err != nil {
+			logger.Logger.Panic("failed to reload config file")
 		} else {
-			fmt.Println("Config reloaded successfully.")
-			config.printLatestConfig()
+			logger.Logger.Info("Config reloaded successfully.")
 			Reload()
 		}
 	})
-	return config
+	return c
 }
 
 func (c *Config) printLatestConfig() {
 	jsonData, err := json.Marshal(c)
 	if err != nil {
-		fmt.Println("Failed to marshal struct to JSON.", err)
+		logger.Logger.Error("Failed to marshal struct to JSON.", zap.String("errorMsg", err.Error()))
 		return
 	}
-	fmt.Printf("Latest configuration: %v \n", string(jsonData))
+	logger.Logger.Info("Config reloaded successfully.", zap.String("configuration", string(jsonData)))
 }

@@ -2,7 +2,7 @@ package grpc
 
 import (
 	pb "agent/grpc/service"
-	"log"
+	"agent/logger"
 )
 
 type RequestBiStreamAcceptor interface {
@@ -21,6 +21,6 @@ func RequestAcceptor(rq *pb.Payload) {
 		if acceptor.GetType() == rq.Metadata.Type {
 			acceptor.Handler(rq)
 		}
-		log.Println("The request does not know the specific acceptor.")
+		logger.Logger.Info("The request does not know the specific acceptor.")
 	}
 }

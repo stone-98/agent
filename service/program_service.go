@@ -3,10 +3,10 @@ package program_service
 import (
 	"agent/grpc"
 	pb "agent/grpc/service"
+	"agent/logger"
 	"encoding/json"
-	"fmt"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/anypb"
-	"log"
 	"sync"
 	"time"
 )
@@ -43,7 +43,7 @@ func SendProgramChangeRequest(programs []ProgramRs) {
 	// 将字典转换为 JSON 字符串
 	dataBytes, err := json.Marshal(programs)
 	if err != nil {
-		fmt.Println("Failed to marshal dictionary to Bytes:", err)
+		logger.Logger.Error("Failed to marshal dictionary to bytes.", zap.Error(err))
 		return
 	}
 
@@ -67,11 +67,14 @@ func SendProgramChangeRequest(programs []ProgramRs) {
 
 	connection := grpc.GetConnection()
 	if connection == nil {
-		log.Println("No connection found, no processing for this program change.")
+		logger.Logger.Info("No connection found, no processing for this program change.")
 		return
 	}
 
-	connection.Send(payload)
+	err = connection.Send(payload)
+	if err != nil {
+		logger.Logger.Info("An exception occurred while sending the grpc request.", zap.Error(err))
+	}
 }
 
 func (*PluginService) GetType() string {

@@ -2,7 +2,8 @@ package grpc
 
 import (
 	pb "agent/grpc/service"
-	"fmt"
+	"agent/logger"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -44,7 +45,7 @@ func StartGrpcServer(grpcServerConfig ServerConfig) {
 	address := localhost + strconv.Itoa(grpcServerConfig.Port)
 	listen, err := net.Listen(listenProtocol, address)
 	if err != nil {
-		panic(fmt.Errorf("failed to listen port: %s", err))
+		logger.Logger.Panic("An exception occurred on the listening port.", zap.Error(err))
 	}
 	// 启动grpc服务
 	grpcServer := grpc.NewServer()
@@ -57,6 +58,6 @@ func StartGrpcServer(grpcServerConfig ServerConfig) {
 	// 支持服务发现和调试
 	reflection.Register(grpcServer)
 	if err := grpcServer.Serve(listen); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		logger.Logger.Info("Crash when starting grpc service.", zap.Error(err))
 	}
 }

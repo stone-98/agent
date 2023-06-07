@@ -6,4 +6,4 @@ program:
     command: test_script.bat
     isAutoStart: true
     isAutoRestart: true
-    MaxRestartCount: 3
+    MaxRestartCount: 4

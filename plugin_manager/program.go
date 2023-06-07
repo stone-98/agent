@@ -1,11 +1,11 @@
 package plugin_manager
 
 import (
+	"agent/logger"
 	program_service "agent/service"
 	"agent/util"
 	"errors"
-	"fmt"
-	"log"
+	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"time"
@@ -67,6 +67,7 @@ func Reload(programs []*Program) {
 	addPrograms := computesAddPrograms(programs, currentPrograms)
 	removePrograms := computesRemovePrograms(programs, currentPrograms)
 	restartPrograms := computesRestartPrograms(programs, currentPrograms)
+	currentPrograms = programs
 	for _, p := range addPrograms {
 		p.start()
 	}
@@ -98,18 +99,18 @@ func SendProgramChangeMsg() {
 }
 
 func (p *Program) start() {
-	fmt.Printf("Try to start Plugin: %s \n", p.Name)
+	logger.Logger.Info("Start the program.", zap.String("name", p.Name))
 	cmd := p.startProcess()
 	p.updateProgramToStart(cmd)
 }
 
-func (p *Program) stopEventOccurred() {
+func (p *Program) occurredStopEvent() {
+	logger.Logger.Info("A stop program event occurred", zap.String("name", p.Name))
 	p.updateProgramToStop()
 	SendProgramChangeMsg()
-	fmt.Printf("Program exit：%s \n", p.Name)
 	if p.IsAutoRestart {
-		// 尝试重新启动
-		fmt.Printf("Try to restart Plugin：%s \n", p.Name)
+		// 进行重新启动
+		logger.Logger.Info("Do a reboot", zap.String("name", p.Name))
 		p.start()
 		SendProgramChangeMsg()
 	}
@@ -214,7 +215,7 @@ func computesDifference(new, old []*Program) []*Program {
 func (p *Program) stop() {
 	err := p.Process.cmd.Process.Kill()
 	if err != nil {
-		log.Printf("停止进程失败: %s \n", err)
+		logger.Logger.Error("An error occurred while stopping the program.", zap.Error(err))
 	}
 }
 
@@ -230,14 +231,14 @@ func (p *Program) startProcess() *exec.Cmd {
 		// 启动命令
 		err := cmd.Start()
 		if err != nil {
-			panic(fmt.Errorf("启动命令时出错: %s", err))
+			logger.Logger.Panic("There was an error starting the program.", zap.String("name", p.Name), zap.Error(err))
 		}
 		channel <- cmd
 		err = cmd.Wait()
 		if err != nil {
-			errors.New(fmt.Sprintf("线程结束: %s %v", p.Name, err))
+			logger.Logger.Info("Program abort.", zap.String("name", p.Name), zap.Error(err))
 		}
-		p.stopEventOccurred()
+		p.occurredStopEvent()
 	}()
 	return <-channel
 }

@@ -11,7 +11,7 @@ echo.
 set /a counter+=1
 echo %time% - Write %counter% >> %output_file%
 ping -n 2 127.0.0.1 > nul
-if %counter%==10 goto :end
+if %counter%==1000 goto :end
 goto :loop
 
 :end

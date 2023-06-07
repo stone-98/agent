@@ -14,6 +14,19 @@ import (
 	"time"
 )
 
+type Process struct {
+	program   *Program
+	cmd       *exec.Cmd
+	startTime time.Time
+	stopTime  time.Time
+	state     int
+	// true if process is starting
+	inStart bool
+	// true if the process is stopped by user
+	stopByUser bool
+	retryTimes int
+}
+
 const (
 	// Stopped the stopped state
 	Stopped = 0
@@ -49,25 +62,12 @@ type Program struct {
 	Process         *Process
 }
 
-type Process struct {
-	program   *Program
-	cmd       *exec.Cmd
-	startTime time.Time
-	stopTime  time.Time
-	state     int
-	// true if process is starting
-	inStart bool
-	// true if the process is stopped by user
-	stopByUser bool
-	retryTimes int
-}
-
 var currentPrograms []*Program
 
 func Reload(programs []*Program) {
 	checkAndRemove(programs)
 	addPrograms := computesAddPrograms(programs, currentPrograms)
-	removePrograms := computesRemovePrograms(currentPrograms, programs)
+	removePrograms := computesRemovePrograms(programs, currentPrograms)
 	restartPrograms := computesRestartPrograms(programs, currentPrograms)
 	for _, p := range addPrograms {
 		p.start()
@@ -102,29 +102,18 @@ func (p *Program) start() {
 	fmt.Printf("Try to start Plugin: %s \n", p.Name)
 	cmd := p.startProcess()
 	p.updateProgramToStart(cmd)
-	p.listenRunningStatus()
 }
 
-func (p *Program) listenRunningStatus() {
-	go func() {
-		for {
-			time.Sleep(1 * time.Second)
-			if !p.isRunning() {
-				p.updateProgramToStop()
-				// 发送程序改变消息
-				SendProgramChangeMsg()
-				break
-			}
-		}
-		fmt.Printf("Program exit：%s \n", p.Name)
-
-		if p.IsAutoStart {
-			// 尝试重新启动
-			fmt.Printf("Try to restart Plugin：%s \n", p.Name)
-			p.start()
-			SendProgramChangeMsg()
-		}
-	}()
+func (p *Program) stopEventOccurred() {
+	p.updateProgramToStop()
+	SendProgramChangeMsg()
+	fmt.Printf("Program exit：%s \n", p.Name)
+	if p.IsAutoStart {
+		// 尝试重新启动
+		fmt.Printf("Try to restart Plugin：%s \n", p.Name)
+		p.start()
+		SendProgramChangeMsg()
+	}
 }
 
 func (p *Program) isRunning() bool {
@@ -244,14 +233,23 @@ func (p *Program) stop() {
 func (p *Program) startProcess() *exec.Cmd {
 	completeCommand := util.AppendPathSeparator(p.Directory) + p.Command
 	cmd := exec.Command(completeCommand)
-	cmd.Dir = p.Directory
-	// 设置标准输出和标准错误输出
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	// 启动命令
-	err := cmd.Start()
-	if err != nil {
-		panic(fmt.Errorf("启动命令时出错: %s", err))
-	}
-	return cmd
+	channel := make(chan *exec.Cmd)
+	go func() {
+		cmd.Dir = p.Directory
+		// 设置标准输出和标准错误输出
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		// 启动命令
+		err := cmd.Start()
+		if err != nil {
+			panic(fmt.Errorf("启动命令时出错: %s", err))
+		}
+		channel <- cmd
+		err = cmd.Wait()
+		if err != nil {
+			errors.New(fmt.Sprintf("线程结束: %s %v", p.Name, err))
+		}
+		p.stopEventOccurred()
+	}()
+	return <-channel
 }

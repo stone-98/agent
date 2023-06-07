@@ -29,11 +29,11 @@ func (c *Config) loadConfig(options *Options) Config {
 	}
 	// 初始化config
 	configInit.Do(func() {
-		config = Config{Lock: &sync.Mutex{}}
+		config.Lock = &sync.Mutex{}
 	})
 	// 加载config
 	config.Lock.Lock()
-	if err := viper.Unmarshal(&config); err != nil {
+	if err := viper.Unmarshal(c); err != nil {
 		panic(fmt.Errorf("failed to unmarshal config: %s", err))
 	}
 	config.Lock.Unlock()

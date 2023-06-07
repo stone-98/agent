@@ -5,12 +5,9 @@ import (
 	"agent/util"
 	"errors"
 	"fmt"
-	"github.com/shirou/gopsutil/process"
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
-	"syscall"
 	"time"
 )
 
@@ -57,6 +54,7 @@ type Program struct {
 	Name            string `mapstructure:"name"`
 	Directory       string `mapstructure:"directory"`
 	Command         string `mapstructure:"command"`
+	IsAutoRestart   bool   `mapstructure:"isAutoRestart"`
 	IsAutoStart     bool   `mapstructure:"isAutoStart"`
 	MaxRestartCount int    `mapstructure:"MaxRestartCount"`
 	Process         *Process
@@ -85,14 +83,15 @@ func SendProgramChangeMsg() {
 	programRss := make([]program_service.ProgramRs, len(currentPrograms), len(currentPrograms))
 	for index, program := range currentPrograms {
 		programRss[index] = program_service.ProgramRs{Name: program.Name,
-			Directory:   program.Directory,
-			Command:     program.Command,
-			IsAutoStart: program.IsAutoStart,
-			Pid:         program.Process.cmd.Process.Pid,
-			StartTime:   program.Process.startTime,
-			StopTime:    program.Process.stopTime,
-			State:       program.Process.state,
-			StopByUser:  program.Process.stopByUser,
+			Directory:     program.Directory,
+			Command:       program.Command,
+			IsAutoStart:   program.IsAutoStart,
+			IsAutoRestart: program.IsAutoRestart,
+			Pid:           program.Process.cmd.Process.Pid,
+			StartTime:     program.Process.startTime,
+			StopTime:      program.Process.stopTime,
+			State:         program.Process.state,
+			StopByUser:    program.Process.stopByUser,
 		}
 	}
 	program_service.SendProgramChangeRequest(programRss)
@@ -108,23 +107,12 @@ func (p *Program) stopEventOccurred() {
 	p.updateProgramToStop()
 	SendProgramChangeMsg()
 	fmt.Printf("Program exit：%s \n", p.Name)
-	if p.IsAutoStart {
+	if p.IsAutoRestart {
 		// 尝试重新启动
 		fmt.Printf("Try to restart Plugin：%s \n", p.Name)
 		p.start()
 		SendProgramChangeMsg()
 	}
-}
-
-func (p *Program) isRunning() bool {
-	if p.Process.cmd != nil && p.Process.cmd.Process != nil {
-		if runtime.GOOS == "windows" {
-			exists, err := process.PidExists(int32(p.Process.cmd.Process.Pid))
-			return exists && err == nil
-		}
-		return p.Process.cmd.Process.Signal(syscall.Signal(0)) == nil
-	}
-	return false
 }
 
 func (p *Program) updateProgramToStart(cmd *exec.Cmd) {
@@ -169,7 +157,7 @@ func (p *Program) check() error {
 
 func checkAndRemove(programs []*Program) {
 	for i := 0; i < len(programs); i++ {
-		if err := programs[i].check(); err != nil {
+		if err := programs[i].check(); err != nil || programs[i].IsAutoStart {
 			programs = append(programs[:i], programs[i+1:]...)
 			i--
 		}

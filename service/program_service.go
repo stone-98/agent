@@ -27,15 +27,16 @@ type Process struct {
 }
 
 type ProgramRs struct {
-	Name        string `mapstructure:"name"`
-	Directory   string `mapstructure:"directory"`
-	Command     string `mapstructure:"command"`
-	IsAutoStart bool   `mapstructure:"isAutoStart"`
-	Pid         int
-	StartTime   time.Time
-	StopTime    time.Time
-	State       int
-	StopByUser  bool
+	Name          string `mapstructure:"name"`
+	Directory     string `mapstructure:"directory"`
+	Command       string `mapstructure:"command"`
+	IsAutoStart   bool   `mapstructure:"isAutoStart"`
+	IsAutoRestart bool   `mapstructure:"isAutoRestart"`
+	Pid           int
+	StartTime     time.Time
+	StopTime      time.Time
+	State         int
+	StopByUser    bool
 }
 
 func SendProgramChangeRequest(programs []ProgramRs) {

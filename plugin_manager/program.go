@@ -83,12 +83,16 @@ func Reload(programs []*Program) {
 func SendProgramChangeMsg() {
 	programRss := make([]program_service.ProgramRs, len(currentPrograms), len(currentPrograms))
 	for index, program := range currentPrograms {
+		var pid = 0
+		if program.Process.cmd != nil {
+			pid = program.Process.cmd.Process.Pid
+		}
 		programRss[index] = program_service.ProgramRs{Name: program.Name,
 			Directory:     program.Directory,
 			Command:       program.Command,
 			IsAutoStart:   program.IsAutoStart,
 			IsAutoRestart: program.IsAutoRestart,
-			Pid:           program.Process.cmd.Process.Pid,
+			Pid:           pid,
 			StartTime:     program.Process.startTime,
 			StopTime:      program.Process.stopTime,
 			State:         program.Process.state,

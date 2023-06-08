@@ -3,12 +3,12 @@ package grpc
 import (
 	pb "agent/grpc/service"
 	"agent/logger"
+	"encoding/json"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"log"
 	"net"
 	"strconv"
 )
@@ -36,9 +36,17 @@ func (s *server) RequestBiStream(stream pb.BiRequestStream_RequestBiStreamServer
 		if err != nil {
 			return err
 		}
-		log.Printf("Received message: %s", rq)
+		printRq(rq)
 		RequestAcceptor(rq)
 	}
+}
+
+func printRq(rq *pb.Payload) {
+	bytes, err := json.Marshal(rq)
+	if err != nil {
+		logger.Logger.Error("An error occurred while converting the request payload to a string.", zap.Error(err))
+	}
+	logger.Logger.Info("Received message.", zap.String("context", string(bytes)))
 }
 
 func StartGrpcServer(grpcServerConfig ServerConfig) {

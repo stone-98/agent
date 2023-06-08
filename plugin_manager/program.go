@@ -61,6 +61,7 @@ type Program struct {
 }
 
 var currentPrograms []*Program
+var ProgramDictionary = make(map[string]*Program)
 
 func Reload(programs []*Program) {
 	checkAndRemove(programs)
@@ -69,14 +70,16 @@ func Reload(programs []*Program) {
 	restartPrograms := computesRestartPrograms(programs, currentPrograms)
 	currentPrograms = programs
 	for _, p := range addPrograms {
-		p.start()
+		ProgramDictionary[p.Name] = p
+		p.Start()
 	}
 	for _, p := range removePrograms {
-		p.stop()
+		delete(ProgramDictionary, p.Name)
+		p.Stop()
 	}
 	for _, p := range restartPrograms {
-		p.stop()
-		p.start()
+		p.Stop()
+		p.Start()
 	}
 }
 
@@ -102,7 +105,12 @@ func SendProgramChangeMsg() {
 	program_service.SendProgramChangeRequest(programRss)
 }
 
-func (p *Program) start() {
+func (p *Program) Restart() {
+	p.Stop()
+	p.Start()
+}
+
+func (p *Program) Start() {
 	logger.Logger.Info("Start the program.", zap.String("name", p.Name))
 	cmd := p.startProcess()
 	p.updateProgramToStart(cmd)
@@ -115,7 +123,7 @@ func (p *Program) occurredStopEvent() {
 	if p.IsAutoRestart {
 		// 进行重新启动
 		logger.Logger.Info("Do a reboot", zap.String("name", p.Name))
-		p.start()
+		p.Start()
 		SendProgramChangeMsg()
 	}
 }
@@ -151,6 +159,9 @@ func (p *Program) updateProgramToStop() {
 }
 
 func (p *Program) check() error {
+	if len(p.Name) < 0 {
+		return errors.New("the program name length must be greater than 0")
+	}
 	if len(p.Directory) < 0 {
 		return errors.New("the file directory length must be greater than 0")
 	}
@@ -216,7 +227,7 @@ func computesDifference(new, old []*Program) []*Program {
 	return diff
 }
 
-func (p *Program) stop() {
+func (p *Program) Stop() {
 	err := p.Process.cmd.Process.Kill()
 	if err != nil {
 		logger.Logger.Error("An error occurred while stopping the program.", zap.Error(err))

@@ -11,10 +11,7 @@ require (
 	google.golang.org/protobuf v1.30.0
 )
 
-require (
-	github.com/benbjohnson/clock v1.1.0 // indirect
-	go.uber.org/multierr v1.8.0 // indirect
-)
+require go.uber.org/multierr v1.8.0 // indirect
 
 require (
 	github.com/golang/protobuf v1.5.3 // indirect

@@ -3,7 +3,6 @@ package program_service
 import (
 	pb "agent/grpc/service"
 	"agent/logger"
-	"agent/plugin_manager"
 	"encoding/json"
 	"go.uber.org/zap"
 )
@@ -36,7 +35,7 @@ func (service *StopProgramService) Handler(rq *pb.Payload) {
 		logger.Logger.Error("Program name length cannot be 0", zap.Error(err))
 	}
 
-	p := plugin_manager.ProgramDictionary[name]
+	p := ProgramDictionary[name]
 	p.Start()
 }
 

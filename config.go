@@ -3,7 +3,7 @@ package main
 import (
 	"agent/grpc"
 	"agent/logger"
-	"agent/plugin_manager"
+	"agent/service"
 	"agent/util"
 	"encoding/json"
 	"fmt"
@@ -14,10 +14,10 @@ import (
 )
 
 type Config struct {
-	GrpcServerConfig grpc.ServerConfig         `mapstructure:"grpcServer"`
-	Programs         []*plugin_manager.Program `mapstructure:"program"`
-	Lock             *sync.Mutex               `json:"-"`
-	Md5              string                    `json:"-"`
+	GrpcServerConfig grpc.ServerConfig          `mapstructure:"grpcServer"`
+	Programs         []*program_service.Program `mapstructure:"program"`
+	Lock             *sync.Mutex                `json:"-"`
+	Md5              string                     `json:"-"`
 }
 
 var configInit sync.Once

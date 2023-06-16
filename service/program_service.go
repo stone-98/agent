@@ -23,9 +23,6 @@ func (*PluginService) Handler(rq *pb.Payload) {
 
 }
 
-type Process struct {
-}
-
 type ProgramRs struct {
 	Name          string `mapstructure:"name"`
 	Directory     string `mapstructure:"directory"`

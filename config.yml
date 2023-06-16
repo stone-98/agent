@@ -2,8 +2,9 @@ grpcServer:
   port: 9001
 program:
   - name: test
-    directory: E:\GolangProjects\agent\script
+    directory: D:\DevSoftware\GolandProjects\agent\script
     command: test_script.bat
     isAutoStart: true
     isAutoRestart: true
-    MaxRestartCount: 4
+    maxRestartCount: 4
+    output: D:\DevSoftware\GolandProjects\agent\script\output.log

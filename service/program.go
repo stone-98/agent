@@ -1,12 +1,10 @@
-package plugin_manager
+package program_service
 
 import (
 	"agent/logger"
-	program_service "agent/service"
 	"agent/util"
 	"errors"
 	"go.uber.org/zap"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -56,7 +54,8 @@ type Program struct {
 	Command         string `mapstructure:"command"`
 	IsAutoRestart   bool   `mapstructure:"isAutoRestart"`
 	IsAutoStart     bool   `mapstructure:"isAutoStart"`
-	MaxRestartCount int    `mapstructure:"MaxRestartCount"`
+	MaxRestartCount int    `mapstructure:"maxRestartCount"`
+	Output          string `mapstructure:"output"`
 	Process         *Process
 }
 
@@ -84,13 +83,13 @@ func Reload(programs []*Program) {
 }
 
 func SendProgramChangeMsg() {
-	programRss := make([]program_service.ProgramRs, len(currentPrograms), len(currentPrograms))
+	programRss := make([]ProgramRs, len(currentPrograms), len(currentPrograms))
 	for index, program := range currentPrograms {
 		var pid = 0
 		if program.Process.cmd != nil {
 			pid = program.Process.cmd.Process.Pid
 		}
-		programRss[index] = program_service.ProgramRs{Name: program.Name,
+		programRss[index] = ProgramRs{Name: program.Name,
 			Directory:     program.Directory,
 			Command:       program.Command,
 			IsAutoStart:   program.IsAutoStart,
@@ -102,7 +101,7 @@ func SendProgramChangeMsg() {
 			StopByUser:    program.Process.stopByUser,
 		}
 	}
-	program_service.SendProgramChangeRequest(programRss)
+	SendProgramChangeRequest(programRss)
 }
 
 func (p *Program) Restart() {
@@ -235,14 +234,19 @@ func (p *Program) Stop() {
 }
 
 func (p *Program) startProcess() *exec.Cmd {
-	completeCommand := util.AppendPathSeparator(p.Directory) + p.Command
-	cmd := exec.Command(completeCommand)
 	channel := make(chan *exec.Cmd)
 	go func() {
+		command := util.GenCompleteCommand(p.Directory, p.Command)
+		var cmd *exec.Cmd
+		if len(p.Output) == 0 {
+			cmd = exec.Command(command)
+		} else {
+			cmd = exec.Command(command, ">>", p.Output)
+		}
 		cmd.Dir = p.Directory
 		// 设置标准输出和标准错误输出
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		//cmd.Stdout = os.Stdout
+		//cmd.Stderr = os.Stderr
 		// 启动命令
 		err := cmd.Start()
 		if err != nil {

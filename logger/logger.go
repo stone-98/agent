@@ -3,7 +3,9 @@ package logger
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"log"
 	"os"
+	"path/filepath"
 )
 
 var Logger *zap.Logger
@@ -66,7 +68,17 @@ func getEncoder() zapcore.Encoder {
 
 // GetWriteSyncer 自定义的WriteSyncer 4.3
 func getFileSyncer() zapcore.WriteSyncer {
-	file, _ := os.Create("./logs/agent.logs")
+	logsPath := "logs/agent.log"
+	dir := filepath.Dir(logsPath)
+	// 创建目录（包括父级目录）
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		log.Fatalf("Failed to create directory: %v", err)
+	}
+	file, err := os.Create(logsPath)
+	if err != nil {
+		log.Fatalf("Failed to create file: %v", err)
+	}
 	return zapcore.AddSync(file)
 }
 
